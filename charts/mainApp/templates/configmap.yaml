@@ -1,0 +1,17 @@
+{{- if .Values.enabled -}}
+{{- range $name, $files := include "template.configmap.file.list" $ | fromJson -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "template.configmap.name" $ }}{{ $name }}
+  labels:
+    {{- include "template.labels" $ | nindent 4 }}
+data:
+  {{- range $file := $files }}
+  # Path: charts/{{ $.Chart.Name }}/{{ $file }}
+  {{ $file | base }}: |-
+    {{- $.Files.Get $file | nindent 4 }}
+  {{- end }}
+---
+{{- end }}
+{{- end -}}

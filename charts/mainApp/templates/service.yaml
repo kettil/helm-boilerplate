@@ -1,0 +1,16 @@
+{{- if .Values.enabled -}}
+{{- range $type, $ports := include "template.port.list" $ | fromJson -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "template.name" $ }}-service-{{ $type | lower }}
+  labels:
+    {{- include "template.labels" $ | nindent 4 }}
+spec:
+  type: {{ $type }}
+  selector:
+    pods: {{ include "template.name" $ }}-pods
+  ports: {{- include "template.port.service" (dict "context" $ "ports" $ports) | nindent 4 }}
+---
+{{- end }}
+{{- end -}}

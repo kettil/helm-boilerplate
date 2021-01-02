@@ -1,0 +1,64 @@
+{{- if .Values.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "template.name" $ }}
+  labels:
+    {{- include "template.labels" $ | nindent 4 }}
+spec:
+  replicas: {{ include "template.replica.default" .Values.spec.replicas }}
+  revisionHistoryLimit: {{ .Values.spec.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      pods: {{ include "template.name" $ }}-pods
+  strategy:
+    type: {{ .Values.spec.strategy.type }}
+    {{- if eq .Values.spec.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.spec.strategy.maxUnavailable }}
+      maxSurge: {{ .Values.spec.strategy.maxSurge }}
+    {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "template.labels" $ | nindent 8 }}
+        pods: {{ include "template.name" $ }}-pods
+      annotations:
+        checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") $ | sha256sum }}
+        #rollme: {{ randAlphaNum 5 | quote }}
+    spec:
+      volumes:
+        {{- include "template.volume.config" (dict "context" $ "name" "node") | nindent 8 }}
+        #{#{- include "template.volume.secret" (dict "context" $ "name" "nginx") | nindent 8 }}
+      containers:
+        - name: {{ include "template.name" $ }}-{{ .Values.containers.nodejs.name }}
+          image: {{ .Values.containers.nodejs.image}}
+          imagePullPolicy: {{ .Values.containers.nodejs.imagePullPolicy | default "IfNotPresent"}}
+          {{/* Resources */}}
+          resources: {{ .Values.containers.nodejs.resources | toYaml | nindent 12 }}
+          {{/* Probes */}}
+          {{- include "template.probe" (dict "context" $ "container" .Values.containers.nodejs) | nindent 10 }}
+
+          command: ["node"]
+          args: ["/app-files/index.js"]
+
+          env:
+            # chart/container
+            {{- include "template.env.chart" .Values.containers.nodejs | nindent 12 }}
+            {{- include "template.env.chart" .Values | nindent 12 }}
+            # global
+            {{- include "template.env.global" .Values.global.env.hosts | nindent 12 }}
+
+          envFrom:
+            {{- include "template.env.secret" (dict "context" $ "name" "database") | nindent 12}}
+
+          ports:
+            {{- include "template.port.container" .Values.ports.http | nindent 12 }}
+            {{- include "template.port.container" .Values.ports.https | nindent 12 }}
+
+          volumeMounts:
+            {{- include "template.volume.config.mount" (dict "context" $ "name" "node" "mount" "/app-files") | nindent 12 }}
+            #{#{- include "template.volume.config.file" (dict "context" $ "name" "<folder-name>" "mount" "/path/to/file1.txt") | nindent 12 }}
+            #{#{- include "template.volume.secret.mount" (dict "context" $ "name" "<folder-name>" "mount" "/app-secrets") | nindent 12 }}
+            #{#{- include "template.volume.secret.file" (dict "context" $ "name" "<folder-name>" "mount" "/path/to/file2.txt") | nindent 12 }}
+{{- end -}}

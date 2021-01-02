@@ -1,0 +1,87 @@
+{{- if (and .Values.enabled (include "template.replica.check" .Values.spec.replicas)) -}}
+apiVersion: autoscaling/v2beta1
+#apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "template.name" $ }}-scale
+  labels:
+    {{- include "template.labels" $ | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "template.name" $ }}
+  minReplicas: {{ .Values.spec.replicas.min | default (include "template.replica.default" .Values.spec.replicas) }}
+  maxReplicas: {{ .Values.spec.replicas.max | default (include "template.replica.default" .Values.spec.replicas) }}
+  {{/*
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      # The smallest policy value is used
+      selectPolicy: Min
+      policies:
+        - type: Percent
+          # Removes maximum 25% of pods per 60 seconds
+          value: 25
+          periodSeconds: 60
+        - type: Pods
+          # Removes maximum 1 pod per 60 seconds
+          value: 1
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
+      policies:
+        - type: Percent
+          # Adds a maximum 100% of pods per 15 seconds
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          # Adds a maximum of 2 pods per 15 seconds
+          value: 2
+          periodSeconds: 15
+  */}}
+  metrics:
+    {{- range $key, $data := .Values.spec.replicas.metrics }}
+    {{- if eq $key "resource" }}
+    - type: Resource
+      resource:
+        name: cpu
+        # !! for v2beta1 !!
+        targetAverageUtilization: {{ $data.limit }}
+
+        # !! for v2beta2 !!
+        #target:
+        #  type: Utilization
+        #  averageUtilization: {{ $data.limit }}
+    {{- else if eq $key "containerResource" }}
+    - type: ContainerResource
+      containerResource:
+        name: cpu
+        container: {{ include "template.name" $ }}-{{ get (get $.Values.containers $data.container) "name" }}
+        target:
+          type: Utilization
+          averageUtilization: {{ $data.limit }}
+    {{- else if eq $key "pods" }}
+    - type: Pods
+      pods:
+        metric:
+          name: packets-per-second
+        target:
+          type: AverageValue
+          averageValue: {{ $data.limit }}
+    {{- else if eq $key "object" }}
+    - type: Object
+      object:
+        metric:
+          name: requests-per-second
+        target:
+          type: Value
+          value: {{ $data.limit }}
+        describedObject:
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          name: {{ include "template.name" $ }}-ingress
+    {{- end }}
+    {{- end }}
+{{- end -}}

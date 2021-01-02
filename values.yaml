@@ -1,0 +1,16 @@
+# !! a subchart must not be activated here
+
+global:
+  env:
+    hosts:
+      test: test.example.com
+  labels:
+    # Should be overwritten by arguments
+    project: unknown
+    #environment: development | test | production
+    #pipeline: url # e.g. from gitlab
+    #version: 0.0.0 # or e.g. pipline id: pipe-42
+    #release: 0.0.0 # or e.g. date: release-2020-12-24T12:12:12Z
+
+  # Do not change the following line
+  secretPostfix: secrets

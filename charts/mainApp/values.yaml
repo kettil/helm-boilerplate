@@ -1,0 +1,108 @@
+# Do not change #
+enabled: false
+# ############# #
+
+containers:
+  nodejs:
+    name: container1
+    image: node:14-alpine
+    #imagePullPolicy: Always
+    resources:
+      limits:
+        #memory: 10Mi
+        cpu: 100m
+      requests:
+        #memory: 10Mi
+        cpu: 100m
+    probes:
+      startup: # container is ready
+        type: httpGet
+        spec:
+          # number or portname (see below)
+          port: http
+          path: /
+          headers:
+            - name: Accept
+              value: application/json
+        initialDelaySeconds: 2
+        periodSeconds: 5
+        #timeoutSeconds: 1
+        #successThreshold: 1
+        #failureThreshold: 3
+      readiness: # for load balancer
+        type: httpGet
+        spec:
+          # number or portname (see below)
+          port: http
+          path: /
+          headers:
+            - name: Accept
+              value: application/json
+        initialDelaySeconds: 6
+        periodSeconds: 10
+        #timeoutSeconds: 1
+        #successThreshold: 1
+        #failureThreshold: 3
+      liveness: # catch a deadlock
+        type: httpGet
+        spec:
+          # number or portname (see below)
+          port: http
+          path: /
+          headers:
+            - name: Accept
+              value: application/json
+        initialDelaySeconds: 1
+        periodSeconds: 10
+        #timeoutSeconds: 1
+        #successThreshold: 1
+        #failureThreshold: 3
+    env:
+      containerVar1: value1
+      containerVar2: value2
+
+env:
+  chartVar1: value1
+  chartVar2: value2
+
+spec:
+  revisionHistoryLimit: 10
+  strategy:
+    # type: Recreate | RollingUpdate
+    type: RollingUpdate
+    maxUnavailable: 25%
+    maxSurge: 25%
+  replicas:
+    default: 2
+    min: 1
+    #max: 3
+    metrics:
+      resource:
+        limit: 75
+      #containerResource:
+      #  container: nodejs
+      #  limit: 75
+      #pods:
+      #  limit: 1k
+      #object:
+      #  limit: 10k
+
+ports:
+  http:
+    enabled: true
+    name: http
+    portType: NodePort
+    port: 3000
+    #protocol: TCP
+    nodePort: 30001
+    ingressType: Prefix
+    ingressPath: /app(/|$)(.*)
+  https:
+    enabled: false
+    name: https
+    #portType: NodePort
+    port: 8084
+    #protocol: TCP
+    #nodePort: 30000-32767
+    #ingressType: Prefix
+    #ingressPath: /app(/|$)(.*)
